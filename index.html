@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drink, Drank &amp; Drunk FJ — Tienda Online</title>
+    <meta name="description" content="Explora nuestra selección premium de licores. Ordena directo por WhatsApp y recibe a domicilio.">
+    <link rel="icon" href="logo.jpg" type="image/jpeg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+    <i class="fab fa-whatsapp"></i> Envíos a domicilio — Ordena por WhatsApp y recibe tu pedido
+</div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <a href="#" class="nav-logo">
+        <img src="logo.jpg" alt="Drink Drank Drunk">
+        <span>Drink, Drank &amp; Drunk FJ</span>
+    </a>
+    <div class="nav-search">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Estoy buscando un...">
+    </div>
+    <div class="nav-actions">
+        <button class="nav-cart-btn" id="openCartBtn">
+            <i class="fas fa-shopping-cart"></i> Carrito
+            <span class="count" id="cartBadge">0</span>
+        </button>
+    </div>
+</nav>
+
+<!-- CATEGORY NAV -->
+<div class="cat-nav" id="catNav">
+    <button class="active" data-cat="all">TODOS</button>
+</div>
+
+<!-- HERO BANNER -->
+<section class="hero-banner">
+    <div class="hero-inner">
+        <div class="hero-text">
+            <span class="badge-new"><i class="fas fa-bolt"></i> Catálogo actualizado</span>
+            <h1>Descubre la<br><span>selección premium</span></h1>
+            <p>Explora nuestro catálogo completo de cervezas, rones, whiskys, vinos y más. Agrega al carrito y ordena directo por WhatsApp.</p>
+            <a href="#catalogo" class="hero-btn"><i class="fas fa-arrow-down"></i> Ver productos</a>
+        </div>
+    </div>
+</section>
+
+<!-- PRODUCTS -->
+<section class="section" id="catalogo">
+    <div class="section-header">
+        <h2>Lo Mejor de lo Mejor</h2>
+        <span class="count-label"><span id="productCount">0</span> productos disponibles</span>
+    </div>
+    <div class="products-grid" id="grid"></div>
+    <div class="no-res" id="noResults">
+        <i class="fas fa-search"></i>
+        <h3>No se encontraron productos</h3>
+        <p>Intenta con otro término de búsqueda o categoría.</p>
+    </div>
+</section>
+
+<!-- CART OVERLAY -->
+<div class="cart-overlay" id="cartOverlay"></div>
+
+<!-- CART SIDEBAR -->
+<aside class="cart-side" id="cartSide">
+    <div class="cs-header">
+        <h2><i class="fas fa-shopping-cart"></i> Tu Pedido</h2>
+        <button class="cs-close" id="closeCart"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="cs-items" id="csItems">
+        <div class="cs-empty" id="csEmpty">
+            <i class="fas fa-cart-plus"></i>
+            <h3>Carrito vacío</h3>
+            <p>Agrega productos para empezar.</p>
+        </div>
+    </div>
+    <div class="cs-footer" id="csFooter" style="display:none">
+        <div class="cs-total">
+            <span>Total:</span>
+            <strong>S/ <span id="csTotal">0.00</span></strong>
+        </div>
+        <button class="wa-btn" id="waBtn"><i class="fab fa-whatsapp"></i> Ordenar por WhatsApp</button>
+        <button class="clr-btn" id="clrBtn"><i class="fas fa-trash-alt"></i> Vaciar carrito</button>
+    </div>
+</aside>
+
+<!-- FLOATING CART MOBILE -->
+<button class="float-cart" id="floatCart">
+    <i class="fas fa-shopping-cart"></i> Carrito
+    <span class="fc-count" id="fcCount">0</span>
+</button>
+
+<!-- TOAST -->
+<div class="toast-box" id="toastBox"></div>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-brand">Drink, Drank &amp; Drunk FJ</div>
+    <p>&copy; 2026 — Todos los derechos reservados</p>
+    <p style="margin-top:6px"><i class="fab fa-whatsapp"></i> Ordena por WhatsApp y recibe a domicilio</p>
+</footer>
+
+<script>
+// ============ CONFIGURACIÓN ============
+const WA_LINK = 'https://api.whatsapp.com/send/?phone=51973758493&type=phone_number&app_absent=0';
+const STORE   = 'Drink, Drank & Drunk FJ';
+// =======================================
+
+// ============ CARRITO ============
+const cart = {
+    items: {},
+    init(){
+        // Limpiar carrito viejo del sistema PHP y empezar fresco
+        const saved = JSON.parse(localStorage.getItem('dddfj_cart') || '{}');
+        // Validar que las imágenes tengan rutas correctas (no ../)
+        for(const[id,item] of Object.entries(saved)){
+            if(item.img && !item.img.startsWith('../')){
+                this.items[id] = item;
+            }
+        }
+        this.ui();
+    },
+    save(){localStorage.setItem('dddfj_cart',JSON.stringify(this.items));this.ui()},
+    add(el){
+        const id=el.dataset.id, name=el.dataset.name, price=+el.dataset.price, stock=+el.dataset.stock, img=el.dataset.img;
+        if(!this.items[id]) this.items[id]={name,price,img,qty:0,stock};
+        if(this.items[id].qty>=stock){toast('Stock máximo alcanzado','warn');return}
+        this.items[id].qty++;
+        this.save();
+        toast(name+' agregado');
+    },
+    rm(id){delete this.items[id];this.save()},
+    qty(id,d){
+        if(!this.items[id])return;
+        this.items[id].qty+=d;
+        if(this.items[id].qty<=0){this.rm(id);return}
+        if(this.items[id].qty>this.items[id].stock){this.items[id].qty=this.items[id].stock;toast('Stock máximo','warn')}
+        this.save();
+    },
+    clr(){this.items={};this.save()},
+    total(){return Object.values(this.items).reduce((s,i)=>s+i.price*i.qty,0)},
+    count(){return Object.values(this.items).reduce((s,i)=>s+i.qty,0)},
+    ui(){
+        const c=this.count(),t=this.total();
+        document.getElementById('cartBadge').textContent=c;
+        document.getElementById('fcCount').textContent=c;
+        const box=document.getElementById('csItems'),emp=document.getElementById('csEmpty'),
+              ft=document.getElementById('csFooter'),tot=document.getElementById('csTotal');
+        box.querySelectorAll('.ci').forEach(e=>e.remove());
+        if(!Object.keys(this.items).length){emp.style.display='block';ft.style.display='none';return}
+        emp.style.display='none';ft.style.display='block';
+        tot.textContent=t.toLocaleString('es-PE',{minimumFractionDigits:2});
+        for(const[id,it] of Object.entries(this.items)){
+            const d=document.createElement('div');d.className='ci';
+            d.innerHTML=`<img src="${it.img}" class="ci-img" alt="" onerror="this.src='img/hero.png';this.style.objectFit='cover'">
+                <div class="ci-info"><div class="ci-name">${it.name}</div><div class="ci-price">S/ ${it.price.toFixed(2)}</div>
+                <div class="ci-controls"><button class="ci-btn" onclick="cart.qty('${id}',-1)">−</button>
+                <span class="ci-qty">${it.qty}</span>
+                <button class="ci-btn" onclick="cart.qty('${id}',1)">+</button>
+                <button class="ci-del" onclick="cart.rm('${id}')"><i class="fas fa-trash-alt"></i></button></div></div>
+                <div class="ci-sub">S/ ${(it.price*it.qty).toLocaleString('es-PE',{minimumFractionDigits:2})}</div>`;
+            box.appendChild(d);
+        }
+    },
+    waMsg(){
+        const items=Object.values(this.items);if(!items.length)return'';
+        let m=`🛒 *Nuevo Pedido — ${STORE}*\n━━━━━━━━━━━━━━━━━━━━\n📦 *Productos:*\n`;
+        items.forEach(i=>{m+=`• ${i.qty}x ${i.name} — S/ ${(i.price*i.qty).toFixed(2)}\n`});
+        m+=`━━━━━━━━━━━━━━━━━━━━\n💰 *Total: S/ ${this.total().toLocaleString('es-PE',{minimumFractionDigits:2})}*\n\n📝 _Pedido generado desde la tienda online._`;
+        return m;
+    }
+};
+
+// ============ UTILIDADES ============
+function toast(msg,type='ok'){
+    const box=document.getElementById('toastBox'),el=document.createElement('div');
+    el.className='toast-msg';
+    el.innerHTML=`<i class="fas fa-${type==='ok'?'check-circle':'exclamation-triangle'}"></i> ${msg}`;
+    box.appendChild(el);setTimeout(()=>el.remove(),3000);
+}
+function toggleCart(o){
+    document.getElementById('cartSide').classList.toggle('open',o);
+    document.getElementById('cartOverlay').classList.toggle('open',o);
+    document.body.style.overflow=o?'hidden':'';
+}
+
+// ============ RENDERIZAR PRODUCTOS ============
+function renderProducts(productos){
+    const grid = document.getElementById('grid');
+    const catNav = document.getElementById('catNav');
+    
+    // Generar categorías
+    const categorias = [...new Set(productos.map(p=>p.categoria))].sort();
+    categorias.forEach(cat=>{
+        const btn = document.createElement('button');
+        btn.dataset.cat = cat.toLowerCase();
+        btn.textContent = cat.toUpperCase();
+        btn.addEventListener('click',function(){
+            document.querySelectorAll('.cat-nav button').forEach(x=>x.classList.remove('active'));
+            this.classList.add('active');
+            filter();
+        });
+        catNav.appendChild(btn);
+    });
+
+    // Generar tarjetas
+    productos.forEach(p=>{
+        const imgSrc = p.imagen || 'img/placeholder.svg';
+        const catLow = (p.categoria||'').toLowerCase();
+        const card = document.createElement('div');
+        card.className = 'p-card';
+        card.dataset.id = p.id;
+        card.dataset.name = p.nombre;
+        card.dataset.price = p.precio;
+        card.dataset.stock = p.cantidad;
+        card.dataset.img = imgSrc;
+        card.dataset.cat = catLow;
+        card.innerHTML = `
+            <div class="p-card__top">
+                <img src="${imgSrc}" alt="${p.nombre}" loading="lazy">
+                <div class="p-card__badges">
+                    <span class="p-badge p-badge--cat">${p.categoria||'Otros'}</span>
+                    ${p.cantidad < 10 ? '<span class="p-badge p-badge--low">Últimas!</span>' : ''}
+                </div>
+                <button class="p-card__fav" title="Me gusta"><i class="far fa-heart"></i></button>
+            </div>
+            <div class="p-card__body">
+                <div class="p-card__name">${p.nombre}</div>
+                <div class="p-card__desc">${p.descripcion||''}</div>
+                <div class="p-card__bottom">
+                    <div class="p-card__price">
+                        S/ ${p.precio.toFixed(2)}
+                    </div>
+                    <button class="p-card__add" onclick="cart.add(this.closest('.p-card'))">
+                        <i class="fas fa-cart-plus"></i> Agregar
+                    </button>
+                </div>
+            </div>`;
+        grid.appendChild(card);
+    });
+
+    document.getElementById('productCount').textContent = productos.length;
+
+    // Favoritos
+    document.querySelectorAll('.p-card__fav').forEach(b=>{
+        b.addEventListener('click',function(e){
+            e.stopPropagation();
+            const i=this.querySelector('i');
+            i.classList.toggle('far');i.classList.toggle('fas');
+            i.style.color=i.classList.contains('fas')?'var(--accent)':'';
+        });
+    });
+
+    // Animación de entrada
+    const obs=new IntersectionObserver(entries=>{
+        entries.forEach((e,i)=>{
+            if(e.isIntersecting){setTimeout(()=>e.target.classList.add('vis'),i*40);obs.unobserve(e.target)}
+        });
+    },{threshold:.05});
+    document.querySelectorAll('.p-card').forEach(c=>obs.observe(c));
+}
+
+function filter(){
+    const s=document.getElementById('searchInput').value.toLowerCase().trim();
+    const cat=document.querySelector('.cat-nav button.active').dataset.cat;
+    let v=0;
+    document.querySelectorAll('.p-card').forEach(c=>{
+        const ok=(c.dataset.name.toLowerCase().includes(s))&&(cat==='all'||c.dataset.cat===cat);
+        c.classList.toggle('hide',!ok);
+        if(ok){v++;c.classList.add('vis')}
+    });
+    document.getElementById('productCount').textContent=v;
+    document.getElementById('noResults').style.display=v?'none':'block';
+}
+
+// ============ INICIALIZAR ============
+document.addEventListener('DOMContentLoaded',()=>{
+    // Cargar productos desde JSON
+    fetch('productos.json')
+        .then(r=>r.json())
+        .then(data=>renderProducts(data))
+        .catch(err=>console.error('Error cargando productos:',err));
+
+    cart.init();
+    document.getElementById('openCartBtn').addEventListener('click',()=>toggleCart(true));
+    document.getElementById('floatCart').addEventListener('click',()=>toggleCart(true));
+    document.getElementById('closeCart').addEventListener('click',()=>toggleCart(false));
+    document.getElementById('cartOverlay').addEventListener('click',()=>toggleCart(false));
+    document.getElementById('clrBtn').addEventListener('click',()=>{if(confirm('¿Vaciar carrito?')){cart.clr();toast('Carrito vaciado')}});
+    document.getElementById('waBtn').addEventListener('click',()=>{
+        const msg = cart.waMsg();
+        const url = WA_LINK + '&text=' + encodeURIComponent(msg);
+        window.open(url, '_blank');
+    });
+    document.getElementById('searchInput').addEventListener('input',filter);
+});
+</script>
+</body>
+</html>
